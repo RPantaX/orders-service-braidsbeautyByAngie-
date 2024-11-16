@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: orders-service
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  datasource:
+    url: jdbc:postgresql://localhost:5434/db_orders?useSSL=false
+    username: fazt3
+    password: 123456
+
+server:
+  port: 0
+
+eureka:
+  instance:
+    instance-id: ${spring.application.name}:${random.value}
+
+swagger:
+  server:
+    url: http://localhost:${eureka.instance.instance-id}
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    csrf:
+      enabled: true
+    path: /swagger-ui.html
