@@ -7,7 +7,7 @@ import lombok.*;
 @Getter
 @Setter
 @Builder
-public class AdressDTO {
+public class AddressDTO {
     private Long adressId;
     private String adressStreet;
     private String adressCity;

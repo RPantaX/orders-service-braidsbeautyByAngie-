@@ -8,7 +8,7 @@ import lombok.*;
 @Setter
 @Builder
 public class ShoppingMethodDTO {
-    private Long shippingMethodId;
-    private String shippingMethodName;
-    private Double shippingMethodPrice;
+    private Long shoppingMethodId;
+    private String shoppingMethodName;
+    private Double shoppingMethodPrice;
 }
