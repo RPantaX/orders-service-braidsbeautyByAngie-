@@ -1,7 +1,13 @@
 package com.braidsbeautyByAngie.aggregates.response;
 
-import java.util.List;
+import lombok.*;
 
+import java.util.List;
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
 public class ResponseListPageableShopOrder {
     private List<ResponseShopOrder> responseShopOrderList;
     private int pageNumber;

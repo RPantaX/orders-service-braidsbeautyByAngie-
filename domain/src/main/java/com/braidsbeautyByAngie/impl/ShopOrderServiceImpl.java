@@ -1,5 +1,6 @@
 package com.braidsbeautyByAngie.impl;
 
+import com.braidsbeautyByAngie.aggregates.dto.ShopOrderDTO;
 import com.braidsbeautyByAngie.aggregates.request.RequestShopOrder;
 import com.braidsbeautyByAngie.aggregates.response.ResponseListPageableShopOrder;
 import com.braidsbeautyByAngie.ports.in.ShopOrderServiceIn;
@@ -24,8 +25,8 @@ public class ShopOrderServiceImpl implements ShopOrderServiceIn {
     }
 
     @Override
-    public void createShopOrderIn(RequestShopOrder requestShopOrder) {
-        serviceOut.createShopOrderOut(requestShopOrder);
+    public ShopOrderDTO createShopOrderIn(RequestShopOrder requestShopOrder) {
+        return serviceOut.createShopOrderOut(requestShopOrder);
     }
 
     @Override

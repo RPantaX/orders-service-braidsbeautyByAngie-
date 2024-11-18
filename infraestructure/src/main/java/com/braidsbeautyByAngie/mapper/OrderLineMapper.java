@@ -9,10 +9,10 @@ import org.springframework.stereotype.Service;
 public class OrderLineMapper {
     private static final ModelMapper modelMapper = new ModelMapper();
 
-    public OrderLineEntity mapToEntity(OrderLineEntity orderLineEntity) {
-        return modelMapper.map(orderLineEntity, OrderLineEntity.class);
+    public OrderLineEntity mapToEntity(OrderLineDTO orderLineDTO) {
+        return modelMapper.map(orderLineDTO, OrderLineEntity.class);
     }
-    public OrderLineDTO mapToDTO(OrderLineDTO orderLineDTO) {
-        return modelMapper.map(orderLineDTO, OrderLineDTO.class);
+    public OrderLineDTO mapToDTO(OrderLineEntity orderLineEntity) {
+        return modelMapper.map(orderLineEntity, OrderLineDTO.class);
     }
 }

@@ -12,6 +12,7 @@ public class OrderLineDTO {
     private int orderLineQuantity;
     private double orderLinePrice;
     private String orderLineState;
+    private double orderLineTotal;
     private Long productItemId;
     private Long reservationId;
     private Long guiaRemisionId;

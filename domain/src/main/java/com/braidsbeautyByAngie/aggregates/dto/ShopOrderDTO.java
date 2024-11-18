@@ -2,7 +2,7 @@ package com.braidsbeautyByAngie.aggregates.dto;
 
 import lombok.*;
 
-import java.time.LocalDate;
+import java.sql.Timestamp;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -11,7 +11,7 @@ import java.time.LocalDate;
 @Builder
 public class ShopOrderDTO {
     private Long shopOrderId;
-    private LocalDate shopOrderDate;
+    private Timestamp shopOrderDate;
     private Double shopOrderTotal;
     private String shopOrderStatus;
     private Long userId;

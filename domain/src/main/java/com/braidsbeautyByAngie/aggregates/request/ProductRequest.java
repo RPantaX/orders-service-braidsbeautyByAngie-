@@ -11,5 +11,5 @@ import lombok.NoArgsConstructor;
 @Getter
 public class ProductRequest {
     private Long productId;
-    private Long productQuantity;
+    private int productQuantity;
 }

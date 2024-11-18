@@ -9,6 +9,36 @@ spring:
     url: jdbc:postgresql://localhost:5434/db_orders?useSSL=false
     username: fazt3
     password: 123456
+  kafka:
+    bootstrap-servers: localhost:9092,localhost:9094,localhost:9096
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      properties:
+        delivery.timeout.ms: 120000
+        linger.ms: 0
+        request.timeout.ms: 30000
+        max.in.flight.requests.per.connection: 5
+        enable.idempotence: true
+    consumer:
+        group-id: orders-ms-angieBraids
+        key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+        properties:
+            spring.json.trusted.packages: 'com.braidsbeautybyangie.coreservice.*'
+  reactor:
+    debug-agent:
+      enabled: true
+
+orders:
+  events:
+    topic:
+      name: orders-events
+products:
+  commands:
+    topic:
+      name: products-commands
 
 server:
   port: 0

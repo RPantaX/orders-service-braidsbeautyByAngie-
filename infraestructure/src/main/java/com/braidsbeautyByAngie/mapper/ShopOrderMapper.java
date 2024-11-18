@@ -9,10 +9,10 @@ import org.springframework.stereotype.Service;
 public class ShopOrderMapper {
     private static final ModelMapper modelMapper = new ModelMapper();
 
-    ShopOrderEntity mapShopOrderDTOToShopOrderEntity(ShopOrderDTO shopOrderDTO) {
+    public ShopOrderEntity mapShopOrderDTOToShopOrderEntity(ShopOrderDTO shopOrderDTO) {
         return modelMapper.map(shopOrderDTO, ShopOrderEntity.class);
     }
-    ShopOrderDTO mapShopOrderEntityToShopOrderDTO(ShopOrderEntity shopOrderEntity) {
+    public ShopOrderDTO mapShopOrderEntityToShopOrderDTO(ShopOrderEntity shopOrderEntity) {
         return modelMapper.map(shopOrderEntity, ShopOrderDTO.class);
     }
 }
