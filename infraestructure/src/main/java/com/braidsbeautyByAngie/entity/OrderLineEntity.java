@@ -19,6 +19,8 @@ public class OrderLineEntity {
     private int orderLineQuantity;
     @Column(name = "order_line_price", nullable = false)
     private double orderLinePrice;
+    @Column(name = "order_line_total", nullable = false)
+    private double orderLineTotal;
     @Column(name = "order_line_state", nullable = false)
     private String orderLineState;
 
@@ -31,10 +33,10 @@ public class OrderLineEntity {
     private Long guiaRemisionId;
 
     @ManyToOne(optional = true)
-    @JoinColumn(name = "shop_order_id", nullable = false)
+    @JoinColumn(name = "shop_order_id", nullable = true)
     private ShopOrderEntity shopOrderEntity;
 
     @ManyToOne(optional = true)
-    @JoinColumn(name = "factura_numero", nullable = false)
+    @JoinColumn(name = "factura_numero", nullable = true)
     private FacturaEntity facturaEntity;
 }
