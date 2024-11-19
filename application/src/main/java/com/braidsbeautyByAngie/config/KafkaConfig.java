@@ -17,6 +17,15 @@ public class KafkaConfig {
     @Value("${products.commands.topic.name}")
     private String productsCommandsTopicName;
 
+    @Value("${payments.commands.topic.name}")
+    private String paymentsCommandsTopicName;
+
+    @Value("${orders.commands.topic.name}")
+    private String ordersCommandsTopicName;
+
+    @Value("${services.commands.topic.name}")
+    private String servicesCommandsTopicName;
+
     private static final Integer TOPIC_REPLICATION_FACTOR=3;
     private static final Integer TOPIC_PARTITIONS=3;
 
@@ -26,7 +35,7 @@ public class KafkaConfig {
     }
 
     @Bean
-    NewTopic createOrderEventTopic(){
+    NewTopic createOrderEventsTopic(){
         return TopicBuilder.name(ordersEventsTopicName)
                 .partitions(TOPIC_PARTITIONS)
                 .replicas(TOPIC_REPLICATION_FACTOR)
@@ -34,10 +43,34 @@ public class KafkaConfig {
     }
 
     @Bean
-    NewTopic createProductCommandTopic(){
+    NewTopic createProductCommandsTopic(){
         return TopicBuilder.name(productsCommandsTopicName)
                 .partitions(TOPIC_PARTITIONS)
                 .replicas(TOPIC_REPLICATION_FACTOR)
                 .build();
     }
+
+    @Bean
+    NewTopic createServiceCommandsTopic(){
+        return TopicBuilder.name(servicesCommandsTopicName)
+                .partitions(TOPIC_PARTITIONS)
+                .replicas(TOPIC_REPLICATION_FACTOR)
+                .build();
+    }
+
+    @Bean
+    NewTopic createPaymentCommandsTopic(){
+        return TopicBuilder.name(paymentsCommandsTopicName)
+                .partitions(TOPIC_PARTITIONS)
+                .replicas(TOPIC_REPLICATION_FACTOR)
+                .build();
+    }
+    @Bean
+    NewTopic createOrdersCommandsTopic(){
+        return TopicBuilder.name(ordersCommandsTopicName)
+                .partitions(TOPIC_PARTITIONS)
+                .replicas(TOPIC_REPLICATION_FACTOR)
+                .build();
+    }
+
 }

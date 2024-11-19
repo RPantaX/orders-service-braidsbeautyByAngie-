@@ -26,7 +26,11 @@ import com.braidsbeautyByAngie.repository.ShoppingMethodRepository;
 
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.AppExceptions.AppExceptionNotFound;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.Constants;
-import org.springframework.beans.factory.annotation.Value;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.events.OrderApprovedEvent;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.events.OrderCreatedToProductsEvent;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.events.OrderCreatedToServiceEvent;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.requests.RequestProductsEvent;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -43,7 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
-
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @RequiredArgsConstructor
@@ -70,17 +74,22 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         );
         shopOrderEntity.setShopOrderStatus("REJECTED");
         shopOrderRepository.save(shopOrderEntity);
-        //TODO: send to kafka
     }
 
     @Override
-    public void aprovedShopOrderOut(Long orderId) {
+    public void aprovedShopOrderOut(Long orderId, boolean isProduct, boolean isService) {
         ShopOrderEntity shopOrderEntity = shopOrderRepository.findById(orderId).orElseThrow(
                 () -> new AppExceptionNotFound("Shop Order not found")
         );
         shopOrderEntity.setShopOrderStatus("APROVED");
         shopOrderRepository.save(shopOrderEntity);
-        //TODO: send to kafka
+
+        OrderApprovedEvent orderApprovedEvent = OrderApprovedEvent.builder()
+                .shopOrderId(shopOrderEntity.getShopOrderId())
+                .isService(isService)
+                .isProduct(isProduct)
+                .build();
+        kafkaTemplate.send(ordersEventsTopicName, orderApprovedEvent);
     }
     @Transactional
     @Override
@@ -151,8 +160,25 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
 
         ShopOrderEntity shopOrderEntitySaved = shopOrderRepository.save(shopOrderEntity);
 
-        //TODO: send to kafka
-        kafkaTemplate.send(ordersEventsTopicName, shopOrderEntitySaved);
+        //kafka events
+        if(!requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() != null){
+            //products and services
+            OrderCreatedToProductsEvent orderCreatedToProductsEvent = orderCreatedToProductsEvent(shopOrderEntitySaved, requestShopOrder);
+
+            OrderCreatedToServiceEvent orderCreatedToServiceEvent = orderCreatedToServiceEvent(shopOrderEntitySaved, requestShopOrder);
+
+            kafkaTemplate.send(ordersEventsTopicName, orderCreatedToServiceEvent);
+            kafkaTemplate.send(ordersEventsTopicName, orderCreatedToProductsEvent);
+        }else if ( requestShopOrder.getProductRequestList().isEmpty()){
+            //services only
+            OrderCreatedToServiceEvent orderCreatedToServiceEvent = orderCreatedToServiceEvent(shopOrderEntitySaved, requestShopOrder);
+            kafkaTemplate.send(ordersEventsTopicName, orderCreatedToServiceEvent);
+        }else{
+            //products only
+            OrderCreatedToProductsEvent orderCreatedToProductsEvent = orderCreatedToProductsEvent(shopOrderEntitySaved, requestShopOrder);
+            kafkaTemplate.send(ordersEventsTopicName, orderCreatedToProductsEvent);
+        }
+
         return shopOrderMapper.mapShopOrderEntityToShopOrderDTO(shopOrderEntitySaved);
     }
 
@@ -212,6 +238,29 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
                 .orderLinePrice(20.00)
                 .orderLineTotal(20.00)
                 .orderLineState("CREATED")
+                .build();
+    }
+    private OrderCreatedToProductsEvent orderCreatedToProductsEvent (ShopOrderEntity shopOrderEntity, RequestShopOrder requestShopOrder){
+
+
+        List<RequestProductsEvent> requestProductsEventList = requestShopOrder.getProductRequestList().stream().map(
+                productRequest -> RequestProductsEvent.builder()
+                        .productId(productRequest.getProductId())
+                        .quantity(productRequest.getProductQuantity())
+                        .build()
+        ).toList();
+
+        return OrderCreatedToProductsEvent.builder()
+                .shopOrderId(shopOrderEntity.getShopOrderId())
+                .customerId(shopOrderEntity.getUserId())
+                .requestProductsEventList(requestProductsEventList)
+                .build();
+    }
+    private OrderCreatedToServiceEvent orderCreatedToServiceEvent (ShopOrderEntity shopOrderEntity, RequestShopOrder requestShopOrder){
+        return OrderCreatedToServiceEvent.builder()
+                .shopOrderId(shopOrderEntity.getShopOrderId())
+                .customerId(shopOrderEntity.getUserId())
+                .reservationId(requestShopOrder.getReservationId())
                 .build();
     }
 }

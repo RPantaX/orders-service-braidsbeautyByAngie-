@@ -6,7 +6,7 @@ import com.braidsbeautyByAngie.aggregates.response.ResponseListPageableShopOrder
 
 public interface ShopOrderServiceOut {
     void rejectShopOrderOut(Long orderId);
-    void aprovedShopOrderOut(Long orderId);
+    void aprovedShopOrderOut(Long orderId, boolean isProduct, boolean isService);
     ShopOrderDTO createShopOrderOut(RequestShopOrder requestShopOrder);
     ResponseListPageableShopOrder getShopOrderListOut(int pageNumber, int pageSize, String orderBy, String sortDir);
 }

@@ -29,7 +29,7 @@ public class ShopOrderHistoryAdapter implements ShopOrderHistoryServiceOut {
 
     @Override
     public List<ShopOrderHistoryDTO> findByOrderIdOut(Long orderId) {
-        var shopOrderHistoryEntities = shopOrderHistoryRepository.findById(orderId);
+        var shopOrderHistoryEntities = shopOrderHistoryRepository.findByShopOrderId(orderId);
         return shopOrderHistoryEntities.stream().map(shopOrderHistoryMapper::mapShopOrderHistoryEntityToDTO).toList();
     }
 }

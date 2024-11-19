@@ -26,19 +26,37 @@ spring:
         key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
         value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
         properties:
-            spring.json.trusted.packages: 'com.braidsbeautybyangie.coreservice.*'
-  reactor:
-    debug-agent:
-      enabled: true
+            spring.json.trusted.packages: 'com.braidsbeautybyangie.*'
 
 orders:
   events:
     topic:
       name: orders-events
+  commands:
+    topic:
+      name: orders-commands
 products:
   commands:
     topic:
       name: products-commands
+  events:
+    topic:
+      name: products-events
+payments:
+  commands:
+    topic:
+      name: payments-commands
+  events:
+    topic:
+      name: payments-events
+services:
+  events:
+    topic:
+      name: services-events
+  commands:
+    topic:
+      name: services-commands
+
 
 server:
   port: 0
