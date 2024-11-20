@@ -34,38 +34,34 @@ public class OrderSaga {
     private String servicesCommandsTopicName;
 
     @KafkaHandler
-    public void handleEvent(@Payload OrderCreatedToProductsEvent event){
+    public void handleEvent(@Payload OrderCreatedEvent event){
         ReserveProductCommand command = ReserveProductCommand.builder()
                 .requestProductsEventList(event.getRequestProductsEventList())
                 .shopOrderId(event.getShopOrderId())
+                .reservationId(event.getReservationId())
                 .build();
         kafkaTemplate.send(productsCommandsTopicName, command);
-        service.addIn(event.getShopOrderId(), "PRODUCT-CREATED");
+        service.addIn(event.getShopOrderId(), "CREATED");
     }
 
-    @KafkaHandler
-    public void handleEvent(@Payload OrderCreatedToServiceEvent event){
-        ReserveServiceCommand command = ReserveServiceCommand.builder()
-                .reservationId(event.getReservationId())
-                .shopOrderId(event.getShopOrderId())
-                .build();
-        kafkaTemplate.send(servicesCommandsTopicName, command);
-        service.addIn(event.getShopOrderId(), "SERVICE-CREATED");
-    }
-
+//    @KafkaHandler
+//    public void handleEvent(@Payload OrderCreatedToServiceEvent event){
+//        ReserveServiceCommand command = ReserveServiceCommand.builder()
+//                .reservationId(event.getReservationId())
+//                .shopOrderId(event.getShopOrderId())
+//                .build();
+//        kafkaTemplate.send(servicesCommandsTopicName, command);
+//        service.addIn(event.getShopOrderId(), "SERVICE-CREATED");
+//    }
 
     @KafkaHandler
     public void handleEvent(@Payload ProductReservedEvent event){
-        ProcessPaymentCommand processPaymentCommand = ProcessPaymentCommand.builder()
+        ReserveServiceCommand command = ReserveServiceCommand.builder()
+                .reservationId(event.getReservationId())
                 .shopOrderId(event.getShopOrderId())
-                .paymentProvider("PAYPAL")
-                .userId(1L)
-                .paymentAccountNumber(BigInteger.valueOf(123456789))
-                .paymentExpirationDate(LocalTime.parse("18:11:20"))
-                .paymentType(PaymentType.valueOf("CREDIT_CARD"))
                 .productList(event.getProductList())
                 .build();
-        kafkaTemplate.send(paymentsCommandsTopicName, processPaymentCommand);
+        kafkaTemplate.send(servicesCommandsTopicName, command);
     }
 
     @KafkaHandler
@@ -78,6 +74,7 @@ public class OrderSaga {
                 .paymentExpirationDate(LocalTime.parse("18:11:20"))
                 .paymentType(PaymentType.valueOf("CREDIT_CARD"))
                 .serviceList(event.getServiceList())
+                .productList(event.getProductList())
                 .reservationId(event.getReservationId())
                 .build();
         kafkaTemplate.send(paymentsCommandsTopicName, processPaymentCommand);
@@ -94,7 +91,10 @@ public class OrderSaga {
     }
     @KafkaHandler
     public void handleEvent(@Payload OrderApprovedEvent event){
-        if(Boolean.TRUE.equals(event.getIsProduct())){
+        if(Boolean.TRUE.equals(event.getIsProduct()) && Boolean.TRUE.equals(event.getIsService())){
+            service.addIn(event.getShopOrderId(), "APPROVED-PRODUCT");
+            service.addIn(event.getShopOrderId(), "APPROVED-SERVICE");
+        } else if (Boolean.TRUE.equals(event.getIsProduct())){
             service.addIn(event.getShopOrderId(), "APPROVED-PRODUCT");
         } else {
             service.addIn(event.getShopOrderId(), "APPROVED-SERVICE");
@@ -102,44 +102,51 @@ public class OrderSaga {
     }
     @KafkaHandler
     public void handleEvent(@Payload PaymentFailedEvent event){
-        if(event.getProductList().isEmpty()){
-            CancelProductReservationCommand cancelProductReservationCommand = CancelProductReservationCommand.builder()
-                    .shopOrderId(event.getShopOrderId())
-                    .productList(event.getProductList())
-                    .build();
-            kafkaTemplate.send(productsCommandsTopicName, cancelProductReservationCommand);
-        } else {
-            CancelReservationCommand cancelReservationCommand = CancelReservationCommand.builder()
-                    .shopOrderId(event.getShopOrderId())
-                    .reservationId(event.getReservationId())
-                    .build();
-            kafkaTemplate.send(servicesCommandsTopicName, cancelReservationCommand);
-        }
+        CancelProductAndServiceReservationCommand cancelProductReservationCommand = CancelProductAndServiceReservationCommand.builder()
+                .shopOrderId(event.getShopOrderId())
+                .productList(event.getProductList())
+                .reservationId(event.getReservationId())
+                .build();
+        kafkaTemplate.send(servicesCommandsTopicName, cancelProductReservationCommand);
 
     }
 
     @KafkaHandler
-    public void handleEvent(@Payload ProductReservationCancelledEvent event){
+    public void handleEvent(@Payload ProductAndServiceCancelledToOrderEvent event){
+        CancelProductAndServiceReservationCommand cancelProductReservationCommand = CancelProductAndServiceReservationCommand.builder()
+                .shopOrderId(event.getShopOrderId())
+                .productList(event.getProductList())
+                .reservationId(event.getReservationId())
+                .build();
+        kafkaTemplate.send(productsCommandsTopicName, cancelProductReservationCommand);
+    }
+
+
+    @KafkaHandler
+    public void handleEvent(@Payload ProductAndServiceReservationCancelledEvent event){
         RejectOrderCommand rejectOrderCommand = RejectOrderCommand.builder()
                 .shopOrderId(event.getShopOrderId())
                 .build();
         kafkaTemplate.send(ordersCommandsTopicName, rejectOrderCommand);
         service.addIn(event.getShopOrderId(), "REJECTED");
     }
+
+    @KafkaHandler
+    public void handleEvent(@Payload ServiceReservationFailedEvent event){
+        CancelProductAndServiceReservationCommand cancelProductReservationCommand = CancelProductAndServiceReservationCommand.builder()
+                .shopOrderId(event.getShopOrderId())
+                .productList(event.getProductList())
+                .reservationId(event.getReservationId())
+                .build();
+        kafkaTemplate.send(productsCommandsTopicName, cancelProductReservationCommand);
+    }
+
     @KafkaHandler
     public void handleEvent(@Payload ProductReservationFailedEvent event){
         RejectOrderCommand rejectOrderCommand = RejectOrderCommand.builder()
                 .shopOrderId(event.getShopOrderId())
                 .build();
         kafkaTemplate.send(ordersCommandsTopicName, rejectOrderCommand);
-        service.addIn(event.getShopOrderId(), "REJECTED-PRODUCT");
-    }
-    @KafkaHandler
-    public void handleEvent(@Payload ServiceReservationFailedEvent event){
-        RejectOrderCommand rejectOrderCommand = RejectOrderCommand.builder()
-                .shopOrderId(event.getShopOrderId())
-                .build();
-        kafkaTemplate.send(ordersCommandsTopicName, rejectOrderCommand);
-        service.addIn(event.getShopOrderId(), "REJECTED-SERVICE");
+        service.addIn(event.getShopOrderId(), "REJECTED");
     }
 }
