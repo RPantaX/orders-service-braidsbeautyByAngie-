@@ -101,6 +101,22 @@
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-config-client</artifactId>
+        </dependency>
+        <!--Proporciona mecanismos para cargar configuracion inicial a una aplicación cliente de spring cloud, nos da un archivo de config para la dependencia de config client -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bootstrap</artifactId>
+        </dependency>
+        <!--Para que el microservicio tenga expuesto unos enpoints para info, variables de entorno o metricas detallas sobre aspectos de rendimiento, recuento de solicitudes http -->
+        <!--Haremos refresh a nuestra configuracion de nuestra config server, no será considerada por nuestra app si esta ejecutandose, solo actualizará cuando usemos el enpoint que hemos definido -->
+        <!--tiene varios enpoints: estado de aplicacion, detalles de compilacion, variables de entorno y dependencias, exponer variables de entorno que utiliza la aplicacion, actuator/metrics: metricas de la app: recuento de solicitudes http, memoria -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>

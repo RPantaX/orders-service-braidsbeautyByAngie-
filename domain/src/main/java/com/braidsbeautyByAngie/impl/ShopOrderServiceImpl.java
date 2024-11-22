@@ -8,6 +8,8 @@ import com.braidsbeautyByAngie.ports.out.ShopOrderServiceOut;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+
 @Service
 @RequiredArgsConstructor
 public class ShopOrderServiceImpl implements ShopOrderServiceIn {
@@ -20,8 +22,8 @@ public class ShopOrderServiceImpl implements ShopOrderServiceIn {
     }
 
     @Override
-    public void aprovedShopOrderIn(Long orderId, boolean isProduct, boolean isService) {
-        serviceOut.aprovedShopOrderOut(orderId, isProduct, isService );
+    public void aprovedShopOrderIn(Long orderId, BigDecimal paymentTotalPrice , boolean isProduct, boolean isService) {
+        serviceOut.aprovedShopOrderOut(orderId,paymentTotalPrice ,isProduct, isService );
     }
 
     @Override

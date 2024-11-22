@@ -1,4 +1,5 @@
 package com.braidsbeautyByAngie.saga;
+import com.braidsbeautyByAngie.aggregates.types.ShopOrderHistoryStatusEnum;
 import com.braidsbeautyByAngie.ports.in.ShopOrderHistoryServiceIn;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.commands.*;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.dto.PaymentType;
@@ -41,7 +42,7 @@ public class OrderSaga {
                 .reservationId(event.getReservationId())
                 .build();
         kafkaTemplate.send(productsCommandsTopicName, command);
-        service.addIn(event.getShopOrderId(), "CREATED");
+        service.addIn(event.getShopOrderId(), ShopOrderHistoryStatusEnum.CREATED);
     }
 
 //    @KafkaHandler
@@ -73,9 +74,8 @@ public class OrderSaga {
                 .paymentAccountNumber(BigInteger.valueOf(123456789))
                 .paymentExpirationDate(LocalTime.parse("18:11:20"))
                 .paymentType(PaymentType.valueOf("CREDIT_CARD"))
-                .serviceList(event.getServiceList())
                 .productList(event.getProductList())
-                .reservationId(event.getReservationId())
+                .reservationCore(event.getReservationCore())
                 .build();
         kafkaTemplate.send(paymentsCommandsTopicName, processPaymentCommand);
     }
@@ -84,6 +84,7 @@ public class OrderSaga {
     public void handleEvent(@Payload PaymentProcessedEvent event){
         ApproveOrderCommand approveOrderCommand = ApproveOrderCommand.builder()
                 .shopOrderId(event.getShopOrderId())
+                .paymentTotalPrice(event.getPaymentTotalPrice())
                 .isProduct(event.isProduct())
                 .isService(event.isService())
                 .build();
@@ -92,12 +93,12 @@ public class OrderSaga {
     @KafkaHandler
     public void handleEvent(@Payload OrderApprovedEvent event){
         if(Boolean.TRUE.equals(event.getIsProduct()) && Boolean.TRUE.equals(event.getIsService())){
-            service.addIn(event.getShopOrderId(), "APPROVED-PRODUCT");
-            service.addIn(event.getShopOrderId(), "APPROVED-SERVICE");
+            service.addIn(event.getShopOrderId(), ShopOrderHistoryStatusEnum.APPROVED_PRODUCT);
+            service.addIn(event.getShopOrderId(), ShopOrderHistoryStatusEnum.APPROVED_SERVICE);
         } else if (Boolean.TRUE.equals(event.getIsProduct())){
-            service.addIn(event.getShopOrderId(), "APPROVED-PRODUCT");
+            service.addIn(event.getShopOrderId(), ShopOrderHistoryStatusEnum.APPROVED_PRODUCT);
         } else {
-            service.addIn(event.getShopOrderId(), "APPROVED-SERVICE");
+            service.addIn(event.getShopOrderId(), ShopOrderHistoryStatusEnum.APPROVED_SERVICE);
         }
     }
     @KafkaHandler
@@ -128,7 +129,7 @@ public class OrderSaga {
                 .shopOrderId(event.getShopOrderId())
                 .build();
         kafkaTemplate.send(ordersCommandsTopicName, rejectOrderCommand);
-        service.addIn(event.getShopOrderId(), "REJECTED");
+        service.addIn(event.getShopOrderId(), ShopOrderHistoryStatusEnum.REJECTED);
     }
 
     @KafkaHandler
@@ -147,6 +148,6 @@ public class OrderSaga {
                 .shopOrderId(event.getShopOrderId())
                 .build();
         kafkaTemplate.send(ordersCommandsTopicName, rejectOrderCommand);
-        service.addIn(event.getShopOrderId(), "REJECTED");
+        service.addIn(event.getShopOrderId(), ShopOrderHistoryStatusEnum.REJECTED);
     }
 }

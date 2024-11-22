@@ -1,6 +1,7 @@
 package com.braidsbeautyByAngie.aggregates.dto;
 
 
+import com.braidsbeautyByAngie.aggregates.types.ShopOrderHistoryStatusEnum;
 import lombok.*;
 
 import java.sql.Timestamp;
@@ -12,6 +13,6 @@ import java.sql.Timestamp;
 public class ShopOrderHistoryDTO {
     private Long shopOrderHistoryId;
     private Long shopOrderId;
-    private String status;
+    private ShopOrderHistoryStatusEnum status;
     private Timestamp createdAt;
 }

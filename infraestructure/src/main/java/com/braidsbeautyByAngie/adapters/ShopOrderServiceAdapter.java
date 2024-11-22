@@ -1,6 +1,8 @@
 package com.braidsbeautyByAngie.adapters;
 
 import com.braidsbeautyByAngie.aggregates.dto.ShopOrderDTO;
+import com.braidsbeautyByAngie.aggregates.types.OrderLineStatusEnum;
+import com.braidsbeautyByAngie.aggregates.types.ShopOrderStatusEnum;
 import com.braidsbeautyByAngie.ports.out.ShopOrderServiceOut;
 
 import com.braidsbeautyByAngie.aggregates.request.ProductRequest;
@@ -42,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,6 +54,11 @@ import org.springframework.beans.factory.annotation.Value;
 @Service
 @RequiredArgsConstructor
 public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ShopOrderServiceAdapter.class);
+
+    @Value("${orders.events.topic.name}")
+    private String ordersEventsTopicName;
 
     private final ShopOrderRepository shopOrderRepository;
     private final ShoppingMethodRepository shoppingMethodRepository;
@@ -63,140 +71,107 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
     private final AddressMapper addressMapper;
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private static final Logger LOGGER = LoggerFactory.getLogger(ShopOrderServiceAdapter.class);
-    @Value("${orders.events.topic.name}") String ordersEventsTopicName;
 
     @Override
     public void rejectShopOrderOut(Long orderId) {
-        ShopOrderEntity shopOrderEntity = shopOrderRepository.findById(orderId).orElseThrow(
-                () -> new AppExceptionNotFound("Shop Order not found")
-        );
-        shopOrderEntity.setShopOrderStatus("REJECTED");
+        ShopOrderEntity shopOrderEntity = fetchShopOrderById(orderId);
+        shopOrderEntity.setShopOrderStatus(ShopOrderStatusEnum.REJECTED);
         shopOrderRepository.save(shopOrderEntity);
     }
 
     @Override
-    public void aprovedShopOrderOut(Long orderId, boolean isProduct, boolean isService) {
-        ShopOrderEntity shopOrderEntity = shopOrderRepository.findById(orderId).orElseThrow(
-                () -> new AppExceptionNotFound("Shop Order not found")
-        );
-        shopOrderEntity.setShopOrderStatus("APPROVED");
+    public void aprovedShopOrderOut(Long orderId, BigDecimal paymentTotalPrice, boolean isProduct, boolean isService) {
+        ShopOrderEntity shopOrderEntity = fetchShopOrderById(orderId);
+        shopOrderEntity.setShopOrderStatus(ShopOrderStatusEnum.APPROVED);
+        shopOrderEntity.setShopOrderTotal(paymentTotalPrice);
         shopOrderRepository.save(shopOrderEntity);
 
-        OrderApprovedEvent orderApprovedEvent = OrderApprovedEvent.builder()
-                .shopOrderId(shopOrderEntity.getShopOrderId())
-                .isService(isService)
-                .isProduct(isProduct)
-                .build();
-        kafkaTemplate.send(ordersEventsTopicName, orderApprovedEvent);
+        sendOrderApprovedEvent(shopOrderEntity, isProduct, isService);
     }
+
     @Transactional
     @Override
     public ShopOrderDTO createShopOrderOut(RequestShopOrder requestShopOrder) {
         ShopOrderEntity shopOrderEntity = new ShopOrderEntity();
-        ShoppingMethodEntity shoppingMethodEntity = shoppingMethodRepository.findById(requestShopOrder.getShoppingMethodId()).orElseThrow(
-                () -> new AppExceptionNotFound("Shopping Method not found")
-        );
-        double totalShopOrder;
-        if(!requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() != null){
-            //products and services
-            //ADDRESS
-            AddressEntity addressEntity = saveAddressEntity(requestShopOrder);
-            AddressEntity addressEntitySaved = adressRepository.save(addressEntity);
-            //PRODUCTS
-            List<OrderLineEntity> orderList = new ArrayList<>(List.of());
-            orderList.addAll(saveProducts(requestShopOrder.getProductRequestList()));
-            //RESERVATION
-            OrderLineEntity orderWithReservation = saveReservation(requestShopOrder.getReservationId());
-            //ADD TO ORDER
-            orderList.add(orderWithReservation);
-            //save to order
-            List<OrderLineEntity> orderListSaved = orderLineRepository.saveAll(orderList);
-            //TOTAL
-            totalShopOrder = orderList.stream().mapToDouble(OrderLineEntity::getOrderLineTotal).sum();
-            //SAVE TO shopORDER
-            shopOrderEntity.setAddressEntity(addressEntitySaved);
-            shopOrderEntity.setOrderLineEntities(orderListSaved);
-            shopOrderEntity.setShopOrderTotal(totalShopOrder);
-        }
-        else if ( requestShopOrder.getProductRequestList().isEmpty()){
-            //services only
-
-            List<OrderLineEntity> orderList = new ArrayList<>(List.of());
-
-            OrderLineEntity orderWithReservation = saveReservation(requestShopOrder.getReservationId());
-            orderList.add(orderWithReservation);
-            //save to order
-            List<OrderLineEntity> orderListSaved = orderLineRepository.saveAll(orderList);
-            totalShopOrder = orderWithReservation.getOrderLineTotal();
-
-            //SAVE TO shopORDER
-            shopOrderEntity.setOrderLineEntities(orderListSaved);
-            shopOrderEntity.setShopOrderTotal(totalShopOrder);
-        } else{
-            //products only
-
-            //ADDRESS
-            AddressEntity addressEntity = saveAddressEntity(requestShopOrder);
-            AddressEntity addressEntitySaved = adressRepository.save(addressEntity);
-
-            //PRODUCTS
-            List<OrderLineEntity> orderList = saveProducts(requestShopOrder.getProductRequestList());
-            totalShopOrder = orderList.stream().mapToDouble(OrderLineEntity::getOrderLineTotal).sum();
-            //save to order
-            List<OrderLineEntity> orderListSaved = orderLineRepository.saveAll(orderList);
-            //SAVE TO shopORDER
-            shopOrderEntity.setAddressEntity(addressEntitySaved);
-            shopOrderEntity.setOrderLineEntities(orderListSaved);
-            shopOrderEntity.setShopOrderTotal(totalShopOrder);
-        }
         shopOrderEntity.setShopOrderDate(Constants.getTimestamp());
-        shopOrderEntity.setShopOrderStatus("CREATED");
-        shopOrderEntity.setShoppingMethodEntity(shoppingMethodEntity);
         shopOrderEntity.setCreatedAt(Constants.getTimestamp());
         shopOrderEntity.setModifiedByUser("TEST-CREATED");
         shopOrderEntity.setUserId(requestShopOrder.getUserId());
+        shopOrderEntity.setShopOrderStatus(ShopOrderStatusEnum.CREATED);
 
-        ShopOrderEntity shopOrderEntitySaved = shopOrderRepository.save(shopOrderEntity);
+        ShoppingMethodEntity shoppingMethod = fetchShoppingMethod(requestShopOrder.getShoppingMethodId());
+        shopOrderEntity.setShoppingMethodEntity(shoppingMethod);
 
-        OrderCreatedEvent orderCreatedEvent = orderCreatedEvent(shopOrderEntitySaved, requestShopOrder);
+        List<OrderLineEntity> orderLines = new ArrayList<>();
 
-        kafkaTemplate.send(ordersEventsTopicName, orderCreatedEvent);
+        if (hasProductsAndReservation(requestShopOrder)) {
+            saveAndLinkAddress(requestShopOrder, shopOrderEntity);
+            orderLines.addAll(saveProducts(requestShopOrder.getProductRequestList()));
+            orderLines.add(saveReservation(requestShopOrder.getReservationId()));
+        } else if (hasOnlyReservation(requestShopOrder)) {
+            orderLines.add(saveReservation(requestShopOrder.getReservationId()));
+        } else if (hasOnlyProducts(requestShopOrder)) {
+            saveAndLinkAddress(requestShopOrder, shopOrderEntity);
+            orderLines.addAll(saveProducts(requestShopOrder.getProductRequestList()));
+        }
 
+        shopOrderEntity.setOrderLineEntities(orderLineRepository.saveAll(orderLines));
 
-        return shopOrderMapper.mapShopOrderEntityToShopOrderDTO(shopOrderEntitySaved);
+        ShopOrderEntity savedShopOrder = shopOrderRepository.save(shopOrderEntity);
+        kafkaTemplate.send(ordersEventsTopicName, buildOrderCreatedEvent(savedShopOrder, requestShopOrder));
+
+        return shopOrderMapper.mapShopOrderEntityToShopOrderDTO(savedShopOrder);
     }
 
     @Override
     public ResponseListPageableShopOrder getShopOrderListOut(int pageNumber, int pageSize, String orderBy, String sortDir) {
-        LOGGER.info("Searching all shop orders with the following parameters: {}", Constants.parametersForLogger(pageNumber, pageSize, orderBy, sortDir));
-        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(orderBy).ascending() : Sort.by(orderBy).descending();
-        Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
-        Page<ShopOrderEntity> shopOrderEntityPage = shopOrderRepository.findAll(pageable);
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, resolveSort(orderBy, sortDir));
+        Page<ShopOrderEntity> shopOrderPage = shopOrderRepository.findAll(pageable);
 
-        List<ResponseShopOrder> responseShopOrderList = shopOrderEntityPage.getContent().stream().map(
-                shopOrderEntity -> ResponseShopOrder.builder()
-                        .shopOrderDTO(shopOrderMapper.mapShopOrderEntityToShopOrderDTO(shopOrderEntity))
-                        .addressDTO(addressMapper.addressDTO(shopOrderEntity.getAddressEntity()))
-                        .orderLineDTOList(shopOrderEntity.getOrderLineEntities().stream().map(
-                                orderLineMapper::mapToDTO
-                        ).toList())
-                        .shoppingMethodDTO(shoppingMethodMapper.convertToShopOrderDTO(shopOrderEntity.getShoppingMethodEntity()))
-                        .factureNumber(20L)
-                        .build()
-        ).toList();
+        List<ResponseShopOrder> responseList = shopOrderPage.getContent().stream()
+                .map(this::mapToResponseShopOrder)
+                .toList();
 
         return ResponseListPageableShopOrder.builder()
-                .responseShopOrderList(responseShopOrderList)
-                .pageNumber(shopOrderEntityPage.getNumber())
-                .totalElements(shopOrderEntityPage.getTotalElements())
-                .totalPages(shopOrderEntityPage.getTotalPages())
-                .pageSize(shopOrderEntityPage.getSize())
-                .end(shopOrderEntityPage.isLast())
+                .responseShopOrderList(responseList)
+                .pageNumber(shopOrderPage.getNumber())
+                .totalElements(shopOrderPage.getTotalElements())
+                .totalPages(shopOrderPage.getTotalPages())
+                .pageSize(shopOrderPage.getSize())
+                .end(shopOrderPage.isLast())
                 .build();
     }
 
-    private AddressEntity saveAddressEntity( RequestShopOrder requestShopOrder){
+    // Utilidad y Métodos Privados
+
+    private ShopOrderEntity fetchShopOrderById(Long orderId) {
+        return shopOrderRepository.findById(orderId).orElseThrow(() -> new AppExceptionNotFound("Shop Order not found"));
+    }
+
+    private ShoppingMethodEntity fetchShoppingMethod(Long shoppingMethodId) {
+        return shoppingMethodRepository.findById(shoppingMethodId).orElseThrow(() -> new AppExceptionNotFound("Shopping Method not found"));
+    }
+
+    private boolean hasProductsAndReservation(RequestShopOrder requestShopOrder) {
+        return !requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() != null;
+    }
+
+    private boolean hasOnlyReservation(RequestShopOrder requestShopOrder) {
+        return requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() != null;
+    }
+
+    private boolean hasOnlyProducts(RequestShopOrder requestShopOrder) {
+        return !requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() == null;
+    }
+
+    private AddressEntity saveAndLinkAddress(RequestShopOrder requestShopOrder, ShopOrderEntity shopOrderEntity) {
+        AddressEntity address = buildAddress(requestShopOrder);
+        AddressEntity savedAddress = adressRepository.save(address);
+        shopOrderEntity.setAddressEntity(savedAddress);
+        return savedAddress;
+    }
+
+    private AddressEntity buildAddress(RequestShopOrder requestShopOrder) {
         return AddressEntity.builder()
                 .addressCity(requestShopOrder.getRequestAdress().getAdressCity())
                 .addressCountry(requestShopOrder.getRequestAdress().getAdressCountry())
@@ -205,42 +180,73 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
                 .addressState(requestShopOrder.getRequestAdress().getAdressState())
                 .build();
     }
-    private List<OrderLineEntity> saveProducts(List<ProductRequest> productRequestList){
-        return productRequestList.stream().map(
-                productRequest -> OrderLineEntity.builder()
-                        .productItemId(productRequest.getProductId())
-                        .orderLineQuantity(productRequest.getProductQuantity())
-                        .orderLinePrice(10.00)
-                        .orderLineTotal(10.00 * productRequest.getProductQuantity())
-                        .orderLineState("CREATED")
-                        .build()
-        ).toList();
+
+    private List<OrderLineEntity> saveProducts(List<ProductRequest> productRequests) {
+        return productRequests.stream()
+                .map(this::buildProductOrderLine)
+                .toList();
     }
-    private OrderLineEntity saveReservation(Long reservationId){
+
+    private OrderLineEntity buildProductOrderLine(ProductRequest productRequest) {
+        double initialPrice = 00.00;
         return OrderLineEntity.builder()
-                .reservationId(reservationId)
-                .orderLineQuantity(1)
-                .orderLinePrice(20.00)
-                .orderLineTotal(20.00)
-                .orderLineState("CREATED")
+                .productItemId(productRequest.getProductId())
+                .orderLineQuantity(productRequest.getProductQuantity())
+                .orderLinePrice(initialPrice)
+                .orderLineTotal(initialPrice)
+                .orderLineState(OrderLineStatusEnum.CREATED)
                 .build();
     }
-    private OrderCreatedEvent orderCreatedEvent (ShopOrderEntity shopOrderEntity, RequestShopOrder requestShopOrder){
-        List<RequestProductsEvent> requestProductsEventList = new ArrayList<>();
-        if(!requestShopOrder.getProductRequestList().isEmpty()){
-            requestProductsEventList.addAll(requestShopOrder.getProductRequestList().stream().map(
-                    productRequest -> RequestProductsEvent.builder()
-                            .productId(productRequest.getProductId())
-                            .quantity(productRequest.getProductQuantity())
-                            .build()
-            ).toList());
-        }
+
+    private OrderLineEntity saveReservation(Long reservationId) {
+        double initialPrice = 00.00;
+        int initialQuantity = 1;
+        return OrderLineEntity.builder()
+                .reservationId(reservationId)
+                .orderLineQuantity(initialQuantity)
+                .orderLinePrice(initialPrice)
+                .orderLineTotal(initialPrice)
+                .orderLineState(OrderLineStatusEnum.CREATED)
+                .build();
+    }
+
+
+    private void sendOrderApprovedEvent(ShopOrderEntity shopOrderEntity, boolean isProduct, boolean isService) {
+        OrderApprovedEvent event = OrderApprovedEvent.builder()
+                .shopOrderId(shopOrderEntity.getShopOrderId())
+                .isService(isService)
+                .isProduct(isProduct)
+                .build();
+        kafkaTemplate.send(ordersEventsTopicName, event);
+    }
+
+    private OrderCreatedEvent buildOrderCreatedEvent(ShopOrderEntity shopOrderEntity, RequestShopOrder requestShopOrder) {
+        List<RequestProductsEvent> productEvents = requestShopOrder.getProductRequestList().stream()
+                .map(product -> RequestProductsEvent.builder()
+                        .productId(product.getProductId())
+                        .quantity(product.getProductQuantity())
+                        .build())
+                .toList();
 
         return OrderCreatedEvent.builder()
                 .shopOrderId(shopOrderEntity.getShopOrderId())
                 .customerId(shopOrderEntity.getUserId())
-                .requestProductsEventList(requestProductsEventList)
+                .requestProductsEventList(productEvents)
                 .reservationId(requestShopOrder.getReservationId())
+                .build();
+    }
+
+    private Sort resolveSort(String orderBy, String sortDir) {
+        return sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(orderBy).ascending() : Sort.by(orderBy).descending();
+    }
+
+    private ResponseShopOrder mapToResponseShopOrder(ShopOrderEntity shopOrderEntity) {
+        return ResponseShopOrder.builder()
+                .shopOrderDTO(shopOrderMapper.mapShopOrderEntityToShopOrderDTO(shopOrderEntity))
+                .addressDTO(addressMapper.addressDTO(shopOrderEntity.getAddressEntity()))
+                .orderLineDTOList(shopOrderEntity.getOrderLineEntities().stream().map(orderLineMapper::mapToDTO).toList())
+                .shoppingMethodDTO(shoppingMethodMapper.convertToShopOrderDTO(shopOrderEntity.getShoppingMethodEntity()))
+                .factureNumber(20L)
                 .build();
     }
 }

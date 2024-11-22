@@ -1,8 +1,10 @@
 package com.braidsbeautyByAngie.entity;
 
+import com.braidsbeautyByAngie.aggregates.types.ShopOrderStatusEnum;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,10 +23,10 @@ public class ShopOrderEntity {
     private Long shopOrderId;
     @Column(name = "shop_order_date", nullable = false)
     private Timestamp shopOrderDate;
-    @Column(name = "shop_order_total", nullable = false)
-    private Double shopOrderTotal;
+    @Column(name = "shop_order_total", nullable = true)
+    private BigDecimal shopOrderTotal;
     @Column(name = "shop_order_status", nullable = false)
-    private String shopOrderStatus;
+    private ShopOrderStatusEnum shopOrderStatus;
     @Column(name = "user_id", nullable = false)
     private Long userId;
 

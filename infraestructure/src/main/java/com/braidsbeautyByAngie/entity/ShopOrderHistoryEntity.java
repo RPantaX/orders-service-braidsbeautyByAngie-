@@ -1,5 +1,6 @@
 package com.braidsbeautyByAngie.entity;
 
+import com.braidsbeautyByAngie.aggregates.types.ShopOrderHistoryStatusEnum;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,7 +23,7 @@ public class ShopOrderHistoryEntity {
     private Long shopOrderId;
 
     @Column(name = "status")
-    private String status;
+    private ShopOrderHistoryStatusEnum status;
 
     @Column(name = "created_at", nullable = false)
     private Timestamp createdAt;

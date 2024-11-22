@@ -1,6 +1,7 @@
 package com.braidsbeautyByAngie.adapters;
 
 import com.braidsbeautyByAngie.aggregates.dto.ShopOrderHistoryDTO;
+import com.braidsbeautyByAngie.aggregates.types.ShopOrderHistoryStatusEnum;
 import com.braidsbeautyByAngie.entity.ShopOrderHistoryEntity;
 import com.braidsbeautyByAngie.mapper.ShopOrderHistoryMapper;
 import com.braidsbeautyByAngie.ports.out.ShopOrderHistoryServiceOut;
@@ -18,7 +19,7 @@ public class ShopOrderHistoryAdapter implements ShopOrderHistoryServiceOut {
     private final ShopOrderHistoryMapper shopOrderHistoryMapper;
 
     @Override
-    public void addOut(Long orderId, String orderStatus) {
+    public void addOut(Long orderId, ShopOrderHistoryStatusEnum orderStatus) {
         ShopOrderHistoryEntity shopOrderHistoryEntity = ShopOrderHistoryEntity.builder()
                 .shopOrderId(orderId)
                 .createdAt(Constants.getTimestamp())

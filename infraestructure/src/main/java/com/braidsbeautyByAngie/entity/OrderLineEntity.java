@@ -1,5 +1,6 @@
 package com.braidsbeautyByAngie.entity;
 
+import com.braidsbeautyByAngie.aggregates.types.OrderLineStatusEnum;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,7 +23,7 @@ public class OrderLineEntity {
     @Column(name = "order_line_total", nullable = false)
     private double orderLineTotal;
     @Column(name = "order_line_state", nullable = false)
-    private String orderLineState;
+    private OrderLineStatusEnum orderLineState;
 
     @Column(name="product_item_id", nullable = true)
     private Long productItemId;
