@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "shop_order_entity")
+@Table(name = "shop_order")
 @Setter
 @Getter
 @AllArgsConstructor
@@ -30,7 +30,7 @@ public class ShopOrderEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "address_id", nullable = true)
     private AddressEntity addressEntity;
 

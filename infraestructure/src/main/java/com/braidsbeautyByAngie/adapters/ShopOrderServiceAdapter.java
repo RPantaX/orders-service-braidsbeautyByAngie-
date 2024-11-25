@@ -1,6 +1,14 @@
 package com.braidsbeautyByAngie.adapters;
 
+import com.braidsbeautyByAngie.aggregates.dto.AddressDTO;
+import com.braidsbeautyByAngie.aggregates.dto.OrderLineDTO;
 import com.braidsbeautyByAngie.aggregates.dto.ShopOrderDTO;
+import com.braidsbeautyByAngie.aggregates.dto.ShoppingMethodDTO;
+import com.braidsbeautyByAngie.aggregates.request.rest.products.RequestProductIds;
+import com.braidsbeautyByAngie.aggregates.response.ResponseShopOrderDetail;
+import com.braidsbeautyByAngie.aggregates.response.rest.payments.PaymentDTO;
+import com.braidsbeautyByAngie.aggregates.response.rest.products.ResponseProductItemDetail;
+import com.braidsbeautyByAngie.aggregates.response.rest.reservations.ResponseReservationDetail;
 import com.braidsbeautyByAngie.aggregates.types.OrderLineStatusEnum;
 import com.braidsbeautyByAngie.aggregates.types.ShopOrderStatusEnum;
 import com.braidsbeautyByAngie.ports.out.ShopOrderServiceOut;
@@ -26,12 +34,16 @@ import com.braidsbeautyByAngie.repository.ShopOrderRepository;
 import com.braidsbeautyByAngie.repository.ShoppingMethodRepository;
 
 
+import com.braidsbeautyByAngie.rest.RestPaymentAdapter;
+import com.braidsbeautyByAngie.rest.RestProductsAdapter;
+import com.braidsbeautyByAngie.rest.RestServicesAdapter;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.AppExceptions.AppExceptionNotFound;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.Constants;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.events.OrderApprovedEvent;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.events.OrderCreatedEvent;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.requests.RequestProductsEvent;
 
+import org.hibernate.query.sql.internal.ParameterRecognizerImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -70,6 +82,10 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
     private final OrderLineMapper orderLineMapper;
     private final AddressMapper addressMapper;
 
+    private final RestProductsAdapter restProductsAdapter;
+    private final RestServicesAdapter restServicesAdapter;
+    private final RestPaymentAdapter restPaymentAdapter;
+
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
@@ -105,19 +121,21 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         List<OrderLineEntity> orderLines = new ArrayList<>();
 
         if (hasProductsAndReservation(requestShopOrder)) {
-            saveAndLinkAddress(requestShopOrder, shopOrderEntity);
+            AddressEntity addressSaved =  saveAndLinkAddress(requestShopOrder);
+            shopOrderEntity.setAddressEntity(addressSaved);
             orderLines.addAll(saveProducts(requestShopOrder.getProductRequestList()));
             orderLines.add(saveReservation(requestShopOrder.getReservationId()));
         } else if (hasOnlyReservation(requestShopOrder)) {
             orderLines.add(saveReservation(requestShopOrder.getReservationId()));
         } else if (hasOnlyProducts(requestShopOrder)) {
-            saveAndLinkAddress(requestShopOrder, shopOrderEntity);
+            AddressEntity addressSaved =  saveAndLinkAddress(requestShopOrder);
+            shopOrderEntity.setAddressEntity(addressSaved);
             orderLines.addAll(saveProducts(requestShopOrder.getProductRequestList()));
         }
-
-        shopOrderEntity.setOrderLineEntities(orderLineRepository.saveAll(orderLines));
-
         ShopOrderEntity savedShopOrder = shopOrderRepository.save(shopOrderEntity);
+        orderLines.forEach(orderLine -> orderLine.setShopOrderEntity(savedShopOrder));
+        orderLineRepository.saveAll(orderLines);
+
         kafkaTemplate.send(ordersEventsTopicName, buildOrderCreatedEvent(savedShopOrder, requestShopOrder));
 
         return shopOrderMapper.mapShopOrderEntityToShopOrderDTO(savedShopOrder);
@@ -142,6 +160,37 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
                 .build();
     }
 
+    @Override
+    public ResponseShopOrderDetail findShopOrderByIdOut(Long orderId) {
+        ShopOrderEntity shopOrderEntity = fetchShopOrderById(orderId);
+        ShopOrderDTO shopOrderDTO = shopOrderMapper.mapShopOrderEntityToShopOrderDTO(shopOrderEntity);
+        ShoppingMethodDTO shoppingMethodDTO = shoppingMethodMapper.convertToShopOrderDTO(shopOrderEntity.getShoppingMethodEntity());
+        List<OrderLineDTO> orderLineDTOList = shopOrderEntity.getOrderLineEntities().stream().map(orderLineMapper::mapToDTO).toList();
+        PaymentDTO paymentDTO = restPaymentAdapter.getPaymentByShopOrderId(shopOrderEntity.getShopOrderId());
+        AddressDTO addressDTO = addressMapper.addressDTO(shopOrderEntity.getAddressEntity());
+        ResponseShopOrderDetail responseShopOrderDetail = ResponseShopOrderDetail.builder()
+                .shopOrderId(shopOrderDTO.getShopOrderId())
+                .shopOrderStatus(shopOrderDTO.getShopOrderStatus())
+                .shippingMethod(shoppingMethodDTO.getShoppingMethodName())
+                .sopOrderDate(shopOrderDTO.getShopOrderDate())
+                .addressDTO(addressDTO)
+                .paymentDTO(paymentDTO)
+                .orderLineDTOList(orderLineDTOList)
+                .build();
+
+        List<Long> itemProductIds = orderLineDTOList.stream().map(OrderLineDTO::getProductItemId).toList();
+        if(!itemProductIds.isEmpty()){
+            List<ResponseProductItemDetail> responseProductItemDetailList = restProductsAdapter.listItemProductsByIds(itemProductIds);
+            responseShopOrderDetail.setResponseProductItemDetailList(responseProductItemDetailList);
+        }
+        Long reservationId = orderLineDTOList.stream().filter(orderLineDTO -> orderLineDTO.getReservationId() != null).findFirst().map(OrderLineDTO::getReservationId).orElse(null);
+        if(reservationId != null){
+            ResponseReservationDetail responseReservationDetail = restServicesAdapter.listReservationById(reservationId);
+            responseShopOrderDetail.setResponseReservationDetail(responseReservationDetail);
+        }
+        return responseShopOrderDetail;
+    }
+
     // Utilidad y Métodos Privados
 
     private ShopOrderEntity fetchShopOrderById(Long orderId) {
@@ -164,10 +213,9 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         return !requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() == null;
     }
 
-    private AddressEntity saveAndLinkAddress(RequestShopOrder requestShopOrder, ShopOrderEntity shopOrderEntity) {
+    private AddressEntity saveAndLinkAddress(RequestShopOrder requestShopOrder) {
         AddressEntity address = buildAddress(requestShopOrder);
         AddressEntity savedAddress = adressRepository.save(address);
-        shopOrderEntity.setAddressEntity(savedAddress);
         return savedAddress;
     }
 

@@ -3,6 +3,7 @@ package com.braidsbeautyByAngie.impl;
 import com.braidsbeautyByAngie.aggregates.dto.ShopOrderDTO;
 import com.braidsbeautyByAngie.aggregates.request.RequestShopOrder;
 import com.braidsbeautyByAngie.aggregates.response.ResponseListPageableShopOrder;
+import com.braidsbeautyByAngie.aggregates.response.ResponseShopOrderDetail;
 import com.braidsbeautyByAngie.ports.in.ShopOrderServiceIn;
 import com.braidsbeautyByAngie.ports.out.ShopOrderServiceOut;
 import lombok.RequiredArgsConstructor;
@@ -34,5 +35,10 @@ public class ShopOrderServiceImpl implements ShopOrderServiceIn {
     @Override
     public ResponseListPageableShopOrder getShopOrderListIn(int pageNumber, int pageSize, String orderBy, String sortDir) {
         return serviceOut.getShopOrderListOut(pageNumber, pageSize, orderBy, sortDir);
+    }
+
+    @Override
+    public ResponseShopOrderDetail findShopOrderByIdIn(Long orderId) {
+        return serviceOut.findShopOrderByIdOut(orderId);
     }
 }

@@ -3,8 +3,10 @@ package com.braidsbeautyByAngie.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
-@Table(name = "address_entity")
+@Table(name = "address")
 @Setter
 @Getter
 @AllArgsConstructor
@@ -25,4 +27,7 @@ public class AddressEntity {
     private String addressPostalCode;
     @Column(name = "address_country", nullable = false)
     private String addressCountry;
+
+    @OneToMany(mappedBy = "addressEntity", cascade = CascadeType.ALL)
+    private List<ShopOrderEntity> shopOrderEntities;
 }

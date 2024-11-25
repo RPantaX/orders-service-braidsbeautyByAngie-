@@ -6,7 +6,7 @@ import lombok.*;
 import java.sql.Timestamp;
 
 @Entity
-@Table(name = "shopping_method_entity")
+@Table(name = "shopping_method")
 @Setter
 @Getter
 @AllArgsConstructor
@@ -17,7 +17,7 @@ public class ShoppingMethodEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "shopping_method_id", nullable = false)
     private Long shoppingMethodId;
-    @Column(name = "shopping_method_name", nullable = false)
+    @Column(name = "shopping_method_name", nullable = false, unique = true)
     private String shoppingMethodName;
     @Column(name = "shopping_method_price", nullable = false)
     private Double shoppingMethodPrice;
