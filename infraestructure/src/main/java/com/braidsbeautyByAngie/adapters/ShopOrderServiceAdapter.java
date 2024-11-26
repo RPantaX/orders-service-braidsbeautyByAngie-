@@ -43,7 +43,8 @@ import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.event
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.events.OrderCreatedEvent;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.requests.RequestProductsEvent;
 
-import org.hibernate.query.sql.internal.ParameterRecognizerImpl;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -166,7 +167,11 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         ShopOrderDTO shopOrderDTO = shopOrderMapper.mapShopOrderEntityToShopOrderDTO(shopOrderEntity);
         ShoppingMethodDTO shoppingMethodDTO = shoppingMethodMapper.convertToShopOrderDTO(shopOrderEntity.getShoppingMethodEntity());
         List<OrderLineDTO> orderLineDTOList = shopOrderEntity.getOrderLineEntities().stream().map(orderLineMapper::mapToDTO).toList();
+        // Manejar el llamado al servicio de pagos con resiliencia
+        //TODO: CAPTURAR EL ERROR Y ENVIAR UN DTO POR DEFECTO
+
         PaymentDTO paymentDTO = restPaymentAdapter.getPaymentByShopOrderId(shopOrderEntity.getShopOrderId());
+
         AddressDTO addressDTO = addressMapper.addressDTO(shopOrderEntity.getAddressEntity());
         ResponseShopOrderDetail responseShopOrderDetail = ResponseShopOrderDetail.builder()
                 .shopOrderId(shopOrderDTO.getShopOrderId())
@@ -190,8 +195,6 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         }
         return responseShopOrderDetail;
     }
-
-    // Utilidad y Métodos Privados
 
     private ShopOrderEntity fetchShopOrderById(Long orderId) {
         return shopOrderRepository.findById(orderId).orElseThrow(() -> new AppExceptionNotFound("Shop Order not found"));

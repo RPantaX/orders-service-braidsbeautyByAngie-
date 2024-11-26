@@ -76,3 +76,41 @@
 #      enabled: true
 #    path: /swagger-ui.html
 #
+resilience4j:
+  retry:
+    configs:
+      default:
+        max-attempts: 3 #Numero de intentos que se realizaran antes de mandar un error
+        wait-duration: 2s #Tiempo de espera entre cada intento como maximo
+    instances:
+      payment-service:
+        base-config: default
+
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 5 #Tamano de la ventana que nos ayuda a validar el monitoreo de fallas y exitos en el circuit breaker, en este caso calculara entre 5 peticiones el nivel de exito y falla
+        failure-rate-threshold: 50 #Porcentaje de fallas que se permiten antes de abrir el circuit breaker/ de las 5 solicitudes si 3 vienen con respuesta erronea, pasara de estado closed a open
+        permitted-number-of-calls-in-half-open-state: 3 #Numero de peticiones permitidas en el estado half-open, ya que es un estado de prueba
+        wait-duration-in-open-state: 10s #Tiempo que se espera para volver a mandar la peticion en el estado half-open
+        register-health-indicator: true #Habilita el monitoreo de la salud del circuit breaker
+        automatic-transition-from-open-to-half-open-enabled: true #Habilita la transicion automatica de open a half-open
+        sliding-window-type: COUNT_BASED #Tipo de ventana que se utilizara para el monitoreo, se vasa en contar cada peticion
+    instances:
+      payment-service:
+        base-config: default
+  timelimiter:
+    instances:
+      payment-service:
+        timeout-duration: 6s #Tiempo maximo de espera para la respuesta de la peticion
+        cancel-running-future: true #Cancela la peticion si se excede el tiempo de espera
+#  ratelimiter:
+#    configs:
+#      default:
+#        limit-for-period: 10 #Numero de peticiones permitidas en el periodo de tiempo
+#        limit-refresh-period: 60s #Tiempo de espera para volver a realizar las peticiones
+#        timeout-duration: 3s #Tiempo de espera para la respuesta de la peticion
+#        register-health-indicator: true #Habilita el monitoreo de la salud del rate limiter
+#    instances:
+#      payment-service:
+#        base-config: default
