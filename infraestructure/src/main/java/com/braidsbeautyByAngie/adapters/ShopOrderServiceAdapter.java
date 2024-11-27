@@ -4,7 +4,6 @@ import com.braidsbeautyByAngie.aggregates.dto.AddressDTO;
 import com.braidsbeautyByAngie.aggregates.dto.OrderLineDTO;
 import com.braidsbeautyByAngie.aggregates.dto.ShopOrderDTO;
 import com.braidsbeautyByAngie.aggregates.dto.ShoppingMethodDTO;
-import com.braidsbeautyByAngie.aggregates.request.rest.products.RequestProductIds;
 import com.braidsbeautyByAngie.aggregates.response.ResponseShopOrderDetail;
 import com.braidsbeautyByAngie.aggregates.response.rest.payments.PaymentDTO;
 import com.braidsbeautyByAngie.aggregates.response.rest.products.ResponseProductItemDetail;
@@ -44,6 +43,7 @@ import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.event
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.requests.RequestProductsEvent;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -66,9 +66,8 @@ import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(ShopOrderServiceAdapter.class);
 
     @Value("${orders.events.topic.name}")
     private String ordersEventsTopicName;
@@ -94,6 +93,7 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         ShopOrderEntity shopOrderEntity = fetchShopOrderById(orderId);
         shopOrderEntity.setShopOrderStatus(ShopOrderStatusEnum.REJECTED);
         shopOrderRepository.save(shopOrderEntity);
+        log.info("Shop Order Rejected: {}", shopOrderEntity);
     }
 
     @Override
@@ -102,13 +102,14 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         shopOrderEntity.setShopOrderStatus(ShopOrderStatusEnum.APPROVED);
         shopOrderEntity.setShopOrderTotal(paymentTotalPrice);
         shopOrderRepository.save(shopOrderEntity);
-
         sendOrderApprovedEvent(shopOrderEntity, isProduct, isService);
+        log.info("Shop Order Approved: {}", shopOrderEntity);
     }
 
     @Transactional
     @Override
     public ShopOrderDTO createShopOrderOut(RequestShopOrder requestShopOrder) {
+        log.info("Creating Shop Order: {}", requestShopOrder);
         ShopOrderEntity shopOrderEntity = new ShopOrderEntity();
         shopOrderEntity.setShopOrderDate(Constants.getTimestamp());
         shopOrderEntity.setCreatedAt(Constants.getTimestamp());
@@ -126,31 +127,45 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
             shopOrderEntity.setAddressEntity(addressSaved);
             orderLines.addAll(saveProducts(requestShopOrder.getProductRequestList()));
             orderLines.add(saveReservation(requestShopOrder.getReservationId()));
+            log.info("Shop Order with Products and Reservation: {}", requestShopOrder);
         } else if (hasOnlyReservation(requestShopOrder)) {
             orderLines.add(saveReservation(requestShopOrder.getReservationId()));
+            log.info("Shop Order with Reservation only: {}", requestShopOrder);
         } else if (hasOnlyProducts(requestShopOrder)) {
             AddressEntity addressSaved =  saveAndLinkAddress(requestShopOrder);
             shopOrderEntity.setAddressEntity(addressSaved);
             orderLines.addAll(saveProducts(requestShopOrder.getProductRequestList()));
+            log.info("Shop Order with Products only: {}", requestShopOrder);
         }
         ShopOrderEntity savedShopOrder = shopOrderRepository.save(shopOrderEntity);
-        orderLines.forEach(orderLine -> orderLine.setShopOrderEntity(savedShopOrder));
-        orderLineRepository.saveAll(orderLines);
+        log.info("Shop Order saved: {}", savedShopOrder);
 
-        kafkaTemplate.send(ordersEventsTopicName, buildOrderCreatedEvent(savedShopOrder, requestShopOrder));
+        orderLines.forEach(orderLine -> orderLine.setShopOrderEntity(savedShopOrder));
+        try {
+            orderLineRepository.saveAll(orderLines);
+            log.info("Order Lines saved: {}", orderLines);
+
+            kafkaTemplate.send(ordersEventsTopicName, buildOrderCreatedEvent(savedShopOrder, requestShopOrder));
+            log.info("Order Created Event sent: {}", savedShopOrder);
+        } catch (Exception e) {
+            log.error("Error saving Order Lines or sending Order Created Event: {}", e.getMessage());
+        }
 
         return shopOrderMapper.mapShopOrderEntityToShopOrderDTO(savedShopOrder);
     }
 
     @Override
     public ResponseListPageableShopOrder getShopOrderListOut(int pageNumber, int pageSize, String orderBy, String sortDir) {
+        log.info("Fetching Shop Order List");
         Pageable pageable = PageRequest.of(pageNumber, pageSize, resolveSort(orderBy, sortDir));
         Page<ShopOrderEntity> shopOrderPage = shopOrderRepository.findAll(pageable);
 
         List<ResponseShopOrder> responseList = shopOrderPage.getContent().stream()
                 .map(this::mapToResponseShopOrder)
                 .toList();
-
+        if (responseList.isEmpty()) {
+            log.info("Shop Order List is Empty");
+        }
         return ResponseListPageableShopOrder.builder()
                 .responseShopOrderList(responseList)
                 .pageNumber(shopOrderPage.getNumber())
@@ -163,14 +178,21 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
 
     @Override
     public ResponseShopOrderDetail findShopOrderByIdOut(Long orderId) {
+        log.info("Fetching Shop Order by Id: {}", orderId);
         ShopOrderEntity shopOrderEntity = fetchShopOrderById(orderId);
         ShopOrderDTO shopOrderDTO = shopOrderMapper.mapShopOrderEntityToShopOrderDTO(shopOrderEntity);
         ShoppingMethodDTO shoppingMethodDTO = shoppingMethodMapper.convertToShopOrderDTO(shopOrderEntity.getShoppingMethodEntity());
         List<OrderLineDTO> orderLineDTOList = shopOrderEntity.getOrderLineEntities().stream().map(orderLineMapper::mapToDTO).toList();
         // Manejar el llamado al servicio de pagos con resiliencia
         //TODO: CAPTURAR EL ERROR Y ENVIAR UN DTO POR DEFECTO
-
-        PaymentDTO paymentDTO = restPaymentAdapter.getPaymentByShopOrderId(shopOrderEntity.getShopOrderId());
+        PaymentDTO paymentDTO = new PaymentDTO();
+        try{
+            log.info("Fetching Payment by Shop Order Id: {}", shopOrderEntity.getShopOrderId());
+            paymentDTO = restPaymentAdapter.getPaymentByShopOrderId(shopOrderEntity.getShopOrderId());
+            log.info("Payment fetched successfully: {}", paymentDTO);
+        } catch (Exception e){
+            log.error("Error fetching Payment by Shop Order Id: {}", e.getMessage());
+        }
 
         AddressDTO addressDTO = addressMapper.addressDTO(shopOrderEntity.getAddressEntity());
         ResponseShopOrderDetail responseShopOrderDetail = ResponseShopOrderDetail.builder()
@@ -185,23 +207,47 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
 
         List<Long> itemProductIds = orderLineDTOList.stream().map(OrderLineDTO::getProductItemId).toList();
         if(!itemProductIds.isEmpty()){
-            List<ResponseProductItemDetail> responseProductItemDetailList = restProductsAdapter.listItemProductsByIds(itemProductIds);
-            responseShopOrderDetail.setResponseProductItemDetailList(responseProductItemDetailList);
+            log.info("Fetching Products by Ids: {}", itemProductIds);
+            try {
+                log.info("Fetching Products by Ids: {}", itemProductIds);
+                List<ResponseProductItemDetail> responseProductItemDetailList = restProductsAdapter.listItemProductsByIds(itemProductIds);
+                responseShopOrderDetail.setResponseProductItemDetailList(responseProductItemDetailList);
+                log.info("Products fetched successfully: {}", responseProductItemDetailList);
+            } catch (Exception e){
+                log.error("Error fetching Products by Ids: {}", e.getMessage());
+            }
+
         }
         Long reservationId = orderLineDTOList.stream().filter(orderLineDTO -> orderLineDTO.getReservationId() != null).findFirst().map(OrderLineDTO::getReservationId).orElse(null);
         if(reservationId != null){
-            ResponseReservationDetail responseReservationDetail = restServicesAdapter.listReservationById(reservationId);
-            responseShopOrderDetail.setResponseReservationDetail(responseReservationDetail);
+            try {
+                log.info("Fetching Reservation by Id: {}", reservationId);
+                ResponseReservationDetail responseReservationDetail = restServicesAdapter.listReservationById(reservationId);
+                responseShopOrderDetail.setResponseReservationDetail(responseReservationDetail);
+                log.info("Reservation fetched successfully: {}", responseReservationDetail);
+            } catch (Exception e){
+                log.error("Error fetching Reservation by Id: {}", e.getMessage());
+            }
+
         }
         return responseShopOrderDetail;
     }
 
     private ShopOrderEntity fetchShopOrderById(Long orderId) {
-        return shopOrderRepository.findById(orderId).orElseThrow(() -> new AppExceptionNotFound("Shop Order not found"));
+        log.info("Fetching Shop Order by Id: {}", orderId);
+        return shopOrderRepository.findById(orderId).orElseThrow(
+                () -> {
+                    log.error("Shop Order not found with Id: {}", orderId);
+                    return new AppExceptionNotFound("Shop Order not found");
+                });
     }
 
     private ShoppingMethodEntity fetchShoppingMethod(Long shoppingMethodId) {
-        return shoppingMethodRepository.findById(shoppingMethodId).orElseThrow(() -> new AppExceptionNotFound("Shopping Method not found"));
+        log.info("Fetching Shopping Method by Id: {}", shoppingMethodId);
+        return shoppingMethodRepository.findById(shoppingMethodId).orElseThrow(() -> {
+            log.error("Shopping Method not found with Id: {}", shoppingMethodId);
+            return new AppExceptionNotFound("Shopping Method not found");
+        });
     }
 
     private boolean hasProductsAndReservation(RequestShopOrder requestShopOrder) {
@@ -263,12 +309,18 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
 
 
     private void sendOrderApprovedEvent(ShopOrderEntity shopOrderEntity, boolean isProduct, boolean isService) {
+
         OrderApprovedEvent event = OrderApprovedEvent.builder()
                 .shopOrderId(shopOrderEntity.getShopOrderId())
                 .isService(isService)
                 .isProduct(isProduct)
                 .build();
-        kafkaTemplate.send(ordersEventsTopicName, event);
+        log.info("Sending Order Approved Event: {}", event);
+        try{
+            kafkaTemplate.send(ordersEventsTopicName, event);
+        }catch (Exception e){
+            log.error("Error sending Order Approved Event: {}", e.getMessage());
+        }
     }
 
     private OrderCreatedEvent buildOrderCreatedEvent(ShopOrderEntity shopOrderEntity, RequestShopOrder requestShopOrder) {
