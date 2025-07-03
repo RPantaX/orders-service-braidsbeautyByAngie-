@@ -19,8 +19,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EnableFeignClients("com.braidsbeautyByAngie.*")
 @OpenAPIDefinition
 @EnableDiscoveryClient
-public class ApplicationLauncher {
+public class OrdersServiceApplication {
     public static void main(String[] args) {
-        SpringApplication.run(ApplicationLauncher.class, args);
+        SpringApplication.run(OrdersServiceApplication.class, args);
     }
 }

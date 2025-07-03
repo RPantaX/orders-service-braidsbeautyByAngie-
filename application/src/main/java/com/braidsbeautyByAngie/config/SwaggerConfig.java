@@ -11,8 +11,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class SwaggerConfig {
-    @Value("${swagger.server.url}")
-    private String serverUrl;
     @Bean
     public OpenAPI customOpenApi(){
         return new OpenAPI()
@@ -26,7 +24,6 @@ public class SwaggerConfig {
                                 .url("https://jefferson-panta.netlify.app/"))
                         .license(new License()
                                 .name("Apache 2.0")
-                                .url("https://www.apache.org/licenses/LICENSE-2.0.html")))
-                .addServersItem(new Server().url(serverUrl));
+                                .url("https://www.apache.org/licenses/LICENSE-2.0.html")));
     }
 }
