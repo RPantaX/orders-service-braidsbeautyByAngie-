@@ -1,7 +1,6 @@
 package com.braidsbeautyByAngie.rest;
 
 import com.braidsbeautyByAngie.aggregates.response.rest.payments.PaymentDTO;
-import com.braidsbeautybyangie.sagapatternspringboot.aggregates.AppExceptions.AppException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
@@ -18,7 +17,4 @@ public interface RestPaymentAdapter {
 
     @GetMapping("/v1/payment-service/payment/{shopOrderId}")
     PaymentDTO getPaymentByShopOrderId(@PathVariable(name = "shopOrderId") Long shopOrderId);
-    default void fallback(Exception e) {
-        throw new AppException("Payment service is down");
-    }
 }
