@@ -1,6 +1,7 @@
 package com.braidsbeautyByAngie.rest;
 
 import com.braidsbeautyByAngie.aggregates.response.rest.reservations.ResponseReservationDetail;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.util.ApiResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
@@ -15,5 +16,5 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface RestServicesAdapter {
 
     @GetMapping("/v1/reservation-service/reservation/{reservationId}")
-    ResponseReservationDetail listReservationById(@PathVariable(name = "reservationId") Long reservationId);
+    ApiResponse listReservationById(@PathVariable(name = "reservationId") Long reservationId);
 }

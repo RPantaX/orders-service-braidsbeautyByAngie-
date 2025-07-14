@@ -1,5 +1,6 @@
 package com.braidsbeautyByAngie.adapters;
 
+import com.braidsbeautyByAngie.aggregates.constants.OrdersErrorEnum;
 import com.braidsbeautyByAngie.aggregates.dto.AddressDTO;
 import com.braidsbeautyByAngie.aggregates.dto.OrderLineDTO;
 import com.braidsbeautyByAngie.aggregates.dto.ShopOrderDTO;
@@ -42,7 +43,9 @@ import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.event
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.events.OrderCreatedEvent;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.requests.RequestProductsEvent;
 
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.util.ValidateUtil;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
@@ -210,7 +213,7 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
             log.info("Fetching Products by Ids: {}", itemProductIds);
             try {
                 log.info("Fetching Products by Ids: {}", itemProductIds);
-                List<ResponseProductItemDetail> responseProductItemDetailList = restProductsAdapter.listItemProductsByIds(itemProductIds);
+                List<ResponseProductItemDetail> responseProductItemDetailList = (List<ResponseProductItemDetail>) restProductsAdapter.listItemProductsByIds(itemProductIds).getData();
                 responseShopOrderDetail.setResponseProductItemDetailList(responseProductItemDetailList);
                 log.info("Products fetched successfully: {}", responseProductItemDetailList);
             } catch (Exception e){
@@ -222,7 +225,7 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         if(reservationId != null){
             try {
                 log.info("Fetching Reservation by Id: {}", reservationId);
-                ResponseReservationDetail responseReservationDetail = restServicesAdapter.listReservationById(reservationId);
+                ResponseReservationDetail responseReservationDetail = (ResponseReservationDetail) restServicesAdapter.listReservationById(reservationId).getData();
                 responseShopOrderDetail.setResponseReservationDetail(responseReservationDetail);
                 log.info("Reservation fetched successfully: {}", responseReservationDetail);
             } catch (Exception e){
@@ -235,19 +238,22 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
 
     private ShopOrderEntity fetchShopOrderById(Long orderId) {
         log.info("Fetching Shop Order by Id: {}", orderId);
-        return shopOrderRepository.findById(orderId).orElseThrow(
-                () -> {
-                    log.error("Shop Order not found with Id: {}", orderId);
-                    return new AppExceptionNotFound("Shop Order not found");
-                });
+        ShopOrderEntity shopOrderEntity = shopOrderRepository.findById(orderId).orElse(null);
+        if (shopOrderEntity == null) {
+            log.error("Shop Order not found with Id: {}", orderId);
+            ValidateUtil.requerido(shopOrderEntity, OrdersErrorEnum.SHOP_ORDER_NOT_FOUND_ERSO00001);
+        }
+        return shopOrderEntity;
     }
 
     private ShoppingMethodEntity fetchShoppingMethod(Long shoppingMethodId) {
         log.info("Fetching Shopping Method by Id: {}", shoppingMethodId);
-        return shoppingMethodRepository.findById(shoppingMethodId).orElseThrow(() -> {
+        ShoppingMethodEntity shoppingMethod = shoppingMethodRepository.findById(shoppingMethodId).orElse(null);
+        if(shoppingMethod == null) {
             log.error("Shopping Method not found with Id: {}", shoppingMethodId);
-            return new AppExceptionNotFound("Shopping Method not found");
-        });
+            ValidateUtil.requerido(shoppingMethod, OrdersErrorEnum.SHOPPING_METHOD_NOT_FOUND_ERSM00017);
+        }
+        return shoppingMethod;
     }
 
     private boolean hasProductsAndReservation(RequestShopOrder requestShopOrder) {

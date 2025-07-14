@@ -1,5 +1,6 @@
 package com.braidsbeautyByAngie.adapters;
 
+import com.braidsbeautyByAngie.aggregates.constants.OrdersErrorEnum;
 import com.braidsbeautyByAngie.aggregates.dto.ShopOrderHistoryDTO;
 import com.braidsbeautyByAngie.aggregates.types.ShopOrderHistoryStatusEnum;
 import com.braidsbeautyByAngie.entity.ShopOrderHistoryEntity;
@@ -8,6 +9,7 @@ import com.braidsbeautyByAngie.ports.out.ShopOrderHistoryServiceOut;
 import com.braidsbeautyByAngie.repository.ShopOrderHistoryRepository;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.AppExceptions.AppExceptionNotFound;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.Constants;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.util.ValidateUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,7 +28,7 @@ public class ShopOrderHistoryAdapter implements ShopOrderHistoryServiceOut {
 
         if (orderId == null || orderStatus == null) {
             log.warn("Invalid input: orderId or orderStatus is null. orderId={}, status={}", orderId, orderStatus);
-            throw new AppExceptionNotFound("Order ID and status must not be null");
+            ValidateUtil.requerido(orderId, OrdersErrorEnum.SHOP_ORDER_INVALID_DATA_ERSO00008);
         }
 
         ShopOrderHistoryEntity shopOrderHistoryEntity = buildShopOrderHistoryEntity(orderId, orderStatus);
@@ -36,7 +38,7 @@ public class ShopOrderHistoryAdapter implements ShopOrderHistoryServiceOut {
             log.info("Order history successfully saved: orderId={}, status={}", orderId, orderStatus);
         } catch (Exception e) {
             log.error("Error saving order history: orderId={}, status={}", orderId, orderStatus, e);
-            throw e; // Rethrow exception for higher-level handling
+            ValidateUtil.requerido(null, OrdersErrorEnum.SHOP_ORDER_HISTORY_CREATION_FAILED_ERSOH00012);
         }
     }
 
@@ -45,13 +47,13 @@ public class ShopOrderHistoryAdapter implements ShopOrderHistoryServiceOut {
         log.info("Fetching order history for orderId={}", orderId);
         if (orderId == null) {
             log.warn("Order ID is null. Cannot fetch order history.");
-            throw new IllegalArgumentException("Order ID must not be null");
+            ValidateUtil.requerido(orderId, OrdersErrorEnum.SHOP_ORDER_NOT_FOUND_ERSO00001);
         }
 
         List<ShopOrderHistoryEntity> shopOrderHistoryEntities = shopOrderHistoryRepository.findByShopOrderId(orderId);
         if (shopOrderHistoryEntities.isEmpty()) {
             log.warn("No order history found for orderId={}", orderId);
-            throw new AppExceptionNotFound("No order history found for orderId=" + orderId);
+            ValidateUtil.requerido(orderId, OrdersErrorEnum.SHOP_ORDER_NOT_FOUND_ERSO00001);
         }
         log.debug("Found {} order history entries for orderId={}", shopOrderHistoryEntities.size(), orderId);
 

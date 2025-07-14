@@ -1,6 +1,7 @@
 package com.braidsbeautyByAngie.rest;
 
 import com.braidsbeautyByAngie.aggregates.response.rest.products.ResponseProductItemDetail;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.util.ApiResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
@@ -16,6 +17,6 @@ import java.util.List;
 public interface RestProductsAdapter {
 
     @GetMapping("/v1/product-service/itemProduct/list")
-    List<ResponseProductItemDetail> listItemProductsByIds(@RequestParam("ids") List<Long> ids);
+    ApiResponse listItemProductsByIds(@RequestParam("ids") List<Long> ids);
 
 }
