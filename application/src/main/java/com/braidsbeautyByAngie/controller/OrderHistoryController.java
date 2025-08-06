@@ -2,6 +2,7 @@ package com.braidsbeautyByAngie.controller;
 
 import com.braidsbeautyByAngie.aggregates.dto.ShopOrderHistoryDTO;
 import com.braidsbeautyByAngie.ports.in.ShopOrderHistoryServiceIn;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.util.ApiResponse;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +29,9 @@ public class OrderHistoryController {
     private final ShopOrderHistoryServiceIn shopOrderHistoryServiceIn;
 
     @GetMapping("/{shopOrderId}")
-    public ResponseEntity<List<ShopOrderHistoryDTO>> findOrderHistoryByShopOrderId(@PathVariable(name = "shopOrderId") Long shopOrderId){
-        return ResponseEntity.ok(shopOrderHistoryServiceIn.findByOrderIdIn(shopOrderId));
+    public ResponseEntity<ApiResponse> findOrderHistoryByShopOrderId(@PathVariable(name = "shopOrderId") Long shopOrderId){
+
+        return ResponseEntity.ok(ApiResponse.ok("find order history by shop Order is", shopOrderHistoryServiceIn.findByOrderIdIn(shopOrderId)));
     }
 
 }

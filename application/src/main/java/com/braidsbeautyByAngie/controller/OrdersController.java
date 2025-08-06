@@ -1,11 +1,9 @@
 package com.braidsbeautyByAngie.controller;
 
-import com.braidsbeautyByAngie.aggregates.dto.ShopOrderDTO;
 import com.braidsbeautyByAngie.aggregates.request.RequestShopOrder;
-import com.braidsbeautyByAngie.aggregates.response.ResponseListPageableShopOrder;
-import com.braidsbeautyByAngie.aggregates.response.ResponseShopOrderDetail;
 import com.braidsbeautyByAngie.ports.in.ShopOrderServiceIn;
 import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.Constants;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.util.ApiResponse;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.info.Info;
@@ -30,21 +28,23 @@ public class OrdersController {
 
     @Operation(summary = "Get all orders")
     @RequestMapping("/list")
-    public ResponseEntity<ResponseListPageableShopOrder> listOrders(@RequestParam(value = "pageNo", defaultValue = Constants.NUM_PAG_BY_DEFECT, required = false) int pageNo,
-                                                                    @RequestParam(value = "pageSize", defaultValue = Constants.SIZE_PAG_BY_DEFECT, required = false) int pageSize,
-                                                                    @RequestParam(value = "sortBy", defaultValue = Constants.ORDER_BY_DEFECT_ALL, required = false) String sortBy,
-                                                                    @RequestParam(value = "sortDir", defaultValue = Constants.ORDER_DIRECT_BY_DEFECT, required = false) String sortDir){
-        return ResponseEntity.ok(service.getShopOrderListIn(pageNo, pageSize, sortBy, sortDir));
+    public ResponseEntity<ApiResponse> listOrders(@RequestParam(value = "pageNo", defaultValue = Constants.NUM_PAG_BY_DEFECT, required = false) int pageNo,
+                                                  @RequestParam(value = "pageSize", defaultValue = Constants.SIZE_PAG_BY_DEFECT, required = false) int pageSize,
+                                                  @RequestParam(value = "sortBy", defaultValue = Constants.ORDER_BY_DEFECT_ALL, required = false) String sortBy,
+                                                  @RequestParam(value = "sortDir", defaultValue = Constants.ORDER_DIRECT_BY_DEFECT, required = false) String sortDir){
+        return ResponseEntity.ok(ApiResponse.ok("List of orders retrieved successfully",
+                service.getShopOrderListIn(pageNo, pageSize, sortBy, sortDir)));
     }
 
     @Operation(summary = "Generate order")
     @RequestMapping()
-    public ResponseEntity<ShopOrderDTO> generateOrder(@RequestBody RequestShopOrder requestShopOrder){
-        return new ResponseEntity<>(service.createShopOrderIn(requestShopOrder),HttpStatus.CREATED);
+    public ResponseEntity<ApiResponse> generateOrder(@RequestBody RequestShopOrder requestShopOrder){
+        return new ResponseEntity<>(ApiResponse.create("Order created", service.createShopOrderIn(requestShopOrder)), HttpStatus.CREATED);
     }
 
     @GetMapping(value = "/{shopOrderId}")
-    public ResponseEntity<ResponseShopOrderDetail> getShopOrderById(@PathVariable(name = "shopOrderId") Long shopOrderId){
-        return ResponseEntity.ok(service.findShopOrderByIdIn(shopOrderId));
+    public ResponseEntity<ApiResponse> getShopOrderById(@PathVariable(name = "shopOrderId") Long shopOrderId){
+        return ResponseEntity.ok(ApiResponse.ok("Shop order retrieved successfully",
+                service.findShopOrderByIdIn(shopOrderId)));
     }
 }

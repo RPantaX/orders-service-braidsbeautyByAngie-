@@ -5,6 +5,7 @@ import com.braidsbeautyByAngie.aggregates.dto.SalesAnalyticsDTO;
 import com.braidsbeautyByAngie.aggregates.dto.TodayTransactionDTO;
 import com.braidsbeautyByAngie.aggregates.dto.TopProductDTO;
 import com.braidsbeautyByAngie.ports.in.DashboardServiceIn;
+import com.braidsbeautybyangie.sagapatternspringboot.aggregates.aggregates.util.ApiResponse;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.info.Info;
@@ -32,30 +33,34 @@ public class DashboardController {
 
     @Operation(summary = "Get dashboard summary cards")
     @GetMapping("/summary")
-    public ResponseEntity<DashboardSummaryDTO> getDashboardSummary() {
-        return ResponseEntity.ok(dashboardService.getDashboardSummaryIn());
+    public ResponseEntity<ApiResponse> getDashboardSummary() {
+        return ResponseEntity.ok(ApiResponse.ok("Dashboard summary retrieved successfully",
+                dashboardService.getDashboardSummaryIn()));
     }
 
     @Operation(summary = "Get sales analytics chart data")
     @GetMapping("/analytics")
-    public ResponseEntity<List<SalesAnalyticsDTO>> getSalesAnalytics(
+    public ResponseEntity<ApiResponse> getSalesAnalytics(
             @RequestParam(defaultValue = "PRODUCT") String type,
             @RequestParam(defaultValue = "MONTHLY") String period,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return ResponseEntity.ok(dashboardService.getSalesAnalyticsIn(type, period, startDate, endDate));
+        return ResponseEntity.ok(ApiResponse.ok("Sales analytics data retrieved successfully",
+                dashboardService.getSalesAnalyticsIn(type, period, startDate, endDate)));
     }
 
     @Operation(summary = "Get today's transactions")
     @GetMapping("/transactions/today")
-    public ResponseEntity<List<TodayTransactionDTO>> getTodayTransactions() {
-        return ResponseEntity.ok(dashboardService.getTodayTransactionsIn());
+    public ResponseEntity<ApiResponse> getTodayTransactions() {
+        return ResponseEntity.ok(ApiResponse.ok("Today's transactions retrieved successfully",
+                dashboardService.getTodayTransactionsIn()));
     }
 
     @Operation(summary = "Get top selling products")
     @GetMapping("/top-products")
-    public ResponseEntity<List<TopProductDTO>> getTopProducts(
+    public ResponseEntity<ApiResponse> getTopProducts(
             @RequestParam(defaultValue = "MONTHLY") String period) {
-        return ResponseEntity.ok(dashboardService.getTopProductsIn(period));
+        return ResponseEntity.ok(ApiResponse.ok("Top products retrieved successfully",
+                dashboardService.getTopProductsIn(period)));
     }
 }
