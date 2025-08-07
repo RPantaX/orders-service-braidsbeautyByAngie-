@@ -191,7 +191,7 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         PaymentDTO paymentDTO = new PaymentDTO();
         try{
             log.info("Fetching Payment by Shop Order Id: {}", shopOrderEntity.getShopOrderId());
-            paymentDTO = restPaymentAdapter.getPaymentByShopOrderId(shopOrderEntity.getShopOrderId());
+            paymentDTO = restPaymentAdapter.getPaymentByShopOrderId(shopOrderEntity.getShopOrderId()).getData();
             log.info("Payment fetched successfully: {}", paymentDTO);
         } catch (Exception e){
             log.error("Error fetching Payment by Shop Order Id: {}", e.getMessage());
@@ -213,7 +213,7 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
             log.info("Fetching Products by Ids: {}", itemProductIds);
             try {
                 log.info("Fetching Products by Ids: {}", itemProductIds);
-                List<ResponseProductItemDetail> responseProductItemDetailList = (List<ResponseProductItemDetail>) restProductsAdapter.listItemProductsByIds(itemProductIds).getData();
+                List<ResponseProductItemDetail> responseProductItemDetailList = restProductsAdapter.listItemProductsByIds(itemProductIds).getData();
                 responseShopOrderDetail.setResponseProductItemDetailList(responseProductItemDetailList);
                 log.info("Products fetched successfully: {}", responseProductItemDetailList);
             } catch (Exception e){
@@ -222,7 +222,7 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
 
         }
         Long reservationId = orderLineDTOList.stream().filter(orderLineDTO -> orderLineDTO.getReservationId() != null).findFirst().map(OrderLineDTO::getReservationId).orElse(null);
-        if(reservationId != null){
+        if(reservationId != null && reservationId > 0) {
             try {
                 log.info("Fetching Reservation by Id: {}", reservationId);
                 ResponseReservationDetail responseReservationDetail = (ResponseReservationDetail) restServicesAdapter.listReservationById(reservationId).getData();
@@ -257,21 +257,20 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
     }
 
     private boolean hasProductsAndReservation(RequestShopOrder requestShopOrder) {
-        return !requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() != null;
+        return !requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() != null && requestShopOrder.getReservationId() > 0;
     }
 
     private boolean hasOnlyReservation(RequestShopOrder requestShopOrder) {
-        return requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() != null;
+        return requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() != null && requestShopOrder.getReservationId() > 0;
     }
 
     private boolean hasOnlyProducts(RequestShopOrder requestShopOrder) {
-        return !requestShopOrder.getProductRequestList().isEmpty() && requestShopOrder.getReservationId() == null;
+        return !requestShopOrder.getProductRequestList().isEmpty() && (requestShopOrder.getReservationId() == null || requestShopOrder.getReservationId() <= 0);
     }
 
     private AddressEntity saveAndLinkAddress(RequestShopOrder requestShopOrder) {
         AddressEntity address = buildAddress(requestShopOrder);
-        AddressEntity savedAddress = adressRepository.save(address);
-        return savedAddress;
+        return adressRepository.save(address);
     }
 
     private AddressEntity buildAddress(RequestShopOrder requestShopOrder) {
@@ -336,12 +335,15 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
                         .quantity(product.getProductQuantity())
                         .build())
                 .toList();
-
+        Long reservationId = null;
+        if (requestShopOrder.getReservationId() != null && requestShopOrder.getReservationId() > 0) {
+            reservationId = requestShopOrder.getReservationId();
+        }
         return OrderCreatedEvent.builder()
                 .shopOrderId(shopOrderEntity.getShopOrderId())
                 .customerId(shopOrderEntity.getUserId())
                 .requestProductsEventList(productEvents)
-                .reservationId(requestShopOrder.getReservationId())
+                .reservationId(reservationId)
                 .build();
     }
 

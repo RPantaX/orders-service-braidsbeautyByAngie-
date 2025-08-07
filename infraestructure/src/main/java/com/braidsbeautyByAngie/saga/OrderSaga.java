@@ -69,17 +69,37 @@ public class OrderSaga {
     @KafkaHandler
     public void handleEvent(@Payload ProductReservedEvent event){
         log.info("Received ProductReservedEvent: {}", event);
-        try {
-            ReserveServiceCommand command = ReserveServiceCommand.builder()
-                    .reservationId(event.getReservationId())
-                    .shopOrderId(event.getShopOrderId())
-                    .productList(event.getProductList())
-                    .build();
-            kafkaTemplate.send(servicesCommandsTopicName, command);
-            log.info("Sent ReserveServiceCommand to topic {}: {}", servicesCommandsTopicName, command);
-        } catch (Exception e) {
-            log.error("Error handling ProductReservedEvent: {}", event, e);
+        if(event.getReservationId() == null || event.getReservationId() == 0) {
+            log.info("Received ServiceReservedEvent: {}", event);
+            try {
+                ProcessPaymentCommand processPaymentCommand = ProcessPaymentCommand.builder()
+                        .shopOrderId(event.getShopOrderId())
+                        .paymentProvider("PAYPAL")
+                        .userId(1L)
+                        .paymentAccountNumber(BigInteger.valueOf(123456789))
+                        .paymentExpirationDate(LocalTime.parse("18:11:20"))
+                        .paymentType(PaymentType.valueOf("CREDIT_CARD"))
+                        .productList(event.getProductList())
+                        .build();
+                kafkaTemplate.send(paymentsCommandsTopicName, processPaymentCommand);
+                log.info("Sent ProcessPaymentCommand to topic {}: {}", paymentsCommandsTopicName, processPaymentCommand);
+            } catch (Exception e) {
+                log.error("Error handling ServiceReservedEvent: {}", event, e);
+            }
+        } else{
+            try {
+                ReserveServiceCommand command = ReserveServiceCommand.builder()
+                        .reservationId(event.getReservationId())
+                        .shopOrderId(event.getShopOrderId())
+                        .productList(event.getProductList())
+                        .build();
+                kafkaTemplate.send(servicesCommandsTopicName, command);
+                log.info("Sent ReserveServiceCommand to topic {}: {}", servicesCommandsTopicName, command);
+            } catch (Exception e) {
+                log.error("Error handling ProductReservedEvent: {}", event, e);
+            }
         }
+
     }
 
     @KafkaHandler

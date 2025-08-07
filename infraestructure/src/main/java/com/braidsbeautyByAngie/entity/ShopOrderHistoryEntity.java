@@ -21,7 +21,7 @@ public class ShopOrderHistoryEntity {
 
     @Column(name = "shop_order_id", nullable = false)
     private Long shopOrderId;
-
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private ShopOrderHistoryStatusEnum status;
 

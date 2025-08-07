@@ -25,6 +25,7 @@ public class ShopOrderEntity {
     private Timestamp shopOrderDate;
     @Column(name = "shop_order_total", nullable = true)
     private BigDecimal shopOrderTotal;
+    @Enumerated(EnumType.STRING)
     @Column(name = "shop_order_status", nullable = false)
     private ShopOrderStatusEnum shopOrderStatus;
     @Column(name = "user_id", nullable = false)

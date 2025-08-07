@@ -9,9 +9,9 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@CircuitBreaker(name = "reservation-service", fallbackMethod = "fallback")
-@Retry(name = "reservation-service")
-@TimeLimiter(name = "reservation-service")
+//@CircuitBreaker(name = "reservation-service")
+//@Retry(name = "reservation-service")
+//@TimeLimiter(name = "reservation-service")
 @FeignClient(name = "reservation-service")
 public interface RestServicesAdapter {
 

@@ -8,10 +8,10 @@ import lombok.*;
 @Setter
 @Builder
 public class AddressDTO {
-    private Long adressId;
-    private String adressStreet;
-    private String adressCity;
-    private String adressState;
-    private String adressPostalCode;
-    private String adressCountry;
+    private Long addressId;
+    private String addressStreet;
+    private String addressCity;
+    private String addressState;
+    private String addressPostalCode;
+    private String addressCountry;
 }

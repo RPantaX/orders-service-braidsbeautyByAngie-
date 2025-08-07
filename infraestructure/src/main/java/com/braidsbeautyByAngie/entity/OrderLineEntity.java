@@ -22,6 +22,7 @@ public class OrderLineEntity {
     private double orderLinePrice;
     @Column(name = "order_line_total", nullable = false)
     private double orderLineTotal;
+    @Enumerated(EnumType.STRING)
     @Column(name = "order_line_state", nullable = false)
     private OrderLineStatusEnum orderLineState;
 
