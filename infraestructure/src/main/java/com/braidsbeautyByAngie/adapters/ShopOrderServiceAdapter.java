@@ -225,7 +225,7 @@ public class ShopOrderServiceAdapter implements ShopOrderServiceOut {
         if(reservationId != null && reservationId > 0) {
             try {
                 log.info("Fetching Reservation by Id: {}", reservationId);
-                ResponseReservationDetail responseReservationDetail = (ResponseReservationDetail) restServicesAdapter.listReservationById(reservationId).getData();
+                ResponseReservationDetail responseReservationDetail = restServicesAdapter.listReservationById(reservationId).getData();
                 responseShopOrderDetail.setResponseReservationDetail(responseReservationDetail);
                 log.info("Reservation fetched successfully: {}", responseReservationDetail);
             } catch (Exception e){

@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
-//@CircuitBreaker(name = "product-service")
-//@Retry(name = "product-service")
-//@TimeLimiter(name = "product-service")
+@CircuitBreaker(name = "product-service")
+@Retry(name = "product-service")
+//@TimeLimiter(name = "product-service") //se usa solo para procesos asincronos como mono o flux
 @FeignClient(name = "product-service")
 public interface RestProductsAdapter {
 

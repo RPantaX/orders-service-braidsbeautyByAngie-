@@ -9,8 +9,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-//@CircuitBreaker(name = "payment-service")
-//@Retry(name = "payment-service")
+@CircuitBreaker(name = "payment-service")
+@Retry(name = "payment-service")
 //@RateLimiter(name = "payment-service", fallbackMethod = "fallback")
 //@TimeLimiter(name = "payment-service")
 @FeignClient(name = "payment-service")
